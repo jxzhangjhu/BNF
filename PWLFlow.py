@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 # torch.autograd.set_detect_anomaly(True)
 np.set_printoptions(suppress=True)
+torch.set_printoptions(precision=4, sci_mode=False)
 
 # Reproductivity;
 np.random.seed(1137)
@@ -31,8 +32,8 @@ val_batch_size = 256
 
 
 # Setup working directory, please check the working directory is the one containing main.py before use;
-# workpath = 'D:\/Coding\/SpectralNFWorkSpace'
-workpath = 'D:\/Study_Files\/UCSB\Projects\/SNFWorkSpace'
+workpath = 'D:\/Coding\/SpectralNFWorkSpace'
+# workpath = 'D:\/Study_Files\/UCSB\Projects\/SNFWorkSpace'
 
 os.environ['DATAROOT'] = workpath + '\datasets'
 summary_path = workpath + '\/summary_{}.txt'.format(dataset_name)
@@ -53,12 +54,12 @@ feature = data_train.dim
 print('Dimension of dataset:', feature)
 
 # Flow model parameters and training setting, including training iterations and validation intervals;
-batch_size = 64
-num_transformation = 4
+batch_size = 256
+num_transformation = 1
 num_breakpoints = 20
 num_iter = 5000
 val_interval = 250
-lr = 0.001
+lr = 0.01
 
 # Base distribution;
 base_dist = distributions.StandardNormal(shape=[feature])
@@ -102,6 +103,11 @@ for i in tbar:
     if torch.any(torch.isnan(loss_batch)) or torch.any(torch.isinf(loss_batch)):
         ab_index = (torch.logical_or(torch.isnan(loss_batch), torch.isinf(loss_batch)) == torch.tensor(True)).nonzero(
             as_tuple=True)[0]
+        out_1 = transform[0](batch[ab_index])[0]
+        slope_at_x = transform[1].mono_pwl_function.slope_at(out_1)
+        slope_all = transform[1].mono_pwl_function.get_slopes()
+        # slope_at_x_new = transform[1].mono_pwl_function.slope_at_new(out_1)
+        plt.show()
         raise ValueError('Invalid loss detected')
     loss.backward()
     optimizer.step()
@@ -123,7 +129,22 @@ for i in tbar:
         # print('Current val score:\n', val_score[count_val])
         count_val += 1
 
+        # out_1 = transform[0](batch)[0]
+        # slope_at_x = transform[1].mono_pwl_function.slope_at(out_1)
+        # out2, slope = transform[1].mono_pwl_function(out_1)
+        # print('1\n', slope[0])
+        # print('2\n', slope_at_x[0])
+
         # print(transform[1].mono_pwl_function.get_slopes())
+
+        x = torch.zeros(2000, feature)
+        for z in range(feature):
+            x[:, z] = torch.arange(-10, 10, 0.01)
+
+        y = transform[1](x)[0]
+
+        plt.plot(x[:, 0], y.detach().numpy()[:, 0], label='{}th act'.format(i))
+        plt.legend()
 
         # # Monitor the log det of each linear layer;
         # logdetlayers = torch.zeros(num_transformation)
@@ -148,5 +169,5 @@ with open(summary_path, 'a') as fp:
     fp.write('Total_time: {}\n'.format(elapsed_time))
 
 # Plot training loss;
-plt.plot(train_loss)
+# plt.plot(train_loss)
 plt.show()
