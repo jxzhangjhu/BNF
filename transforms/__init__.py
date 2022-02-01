@@ -31,11 +31,9 @@ from transforms.standard import (
 )
 from transforms.svd import SVDLinear
 
-# from transforms.spectral import SpecTransformation
-from transforms.specnf import SpecTransformation
-from transforms.lunf import LUSpectralTransformation
 
 
-from transforms.activation import CompactResAct
-from transforms.activation import MonotonicTanhAct
+# from transforms.activation import CompactResAct
+# from transforms.activation import MonotonicTanhAct
+from transforms.pwl import PWLTransformation
 
