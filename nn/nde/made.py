@@ -281,147 +281,30 @@ class MADE(nn.Module):
         return outputs
 
 
-class MixtureOfGaussiansMADE(MADE):
-    def __init__(
-        self,
-        features,
-        hidden_features,
-        context_features=None,
-        num_blocks=2,
-        num_mixture_components=5,
-        use_residual_blocks=True,
-        random_mask=False,
-        activation=F.relu,
-        dropout_probability=0.0,
-        use_batch_norm=False,
-        epsilon=1e-2,
-        custom_initialization=True,
-    ):
+if __name__ == "__main__":
+    batch_size = 1
+    in_feature = 4
+    out_feature = 4
 
-        if use_residual_blocks and random_mask:
-            raise ValueError("Residual blocks can't be used with random masks.")
-
-        super().__init__(
-            features,
-            hidden_features,
-            context_features=context_features,
-            num_blocks=num_blocks,
-            output_multiplier=3 * num_mixture_components,
-            use_residual_blocks=use_residual_blocks,
-            random_mask=random_mask,
-            activation=activation,
-            dropout_probability=dropout_probability,
-            use_batch_norm=use_batch_norm,
+    mask_linear = MaskedLinear(
+            in_degrees=_get_input_degrees(in_feature),
+            out_features=out_feature,
+            autoregressive_features=in_feature,
+            random_mask=False,
+            is_output=True,
         )
 
-        self.num_mixture_components = num_mixture_components
-        self.features = features
-        self.hidden_features = hidden_features
-        self.epsilon = epsilon
-
-        if custom_initialization:
-            self._initialize()
-
-    def forward(self, inputs, context=None):
-        return super().forward(inputs, context=context)
-
-    def log_prob(self, inputs, context=None):
-        outputs = self.forward(inputs, context=context)
-        outputs = outputs.reshape(*inputs.shape, self.num_mixture_components, 3)
-
-        logits, means, unconstrained_stds = (
-            outputs[..., 0],
-            outputs[..., 1],
-            outputs[..., 2],
-        )
-        log_mixture_coefficients = torch.log_softmax(logits, dim=-1)
-        stds = F.softplus(unconstrained_stds) + self.epsilon
-
-        log_prob = torch.sum(
-            torch.logsumexp(
-                log_mixture_coefficients
-                - 0.5
-                * (
-                    np.log(2 * np.pi)
-                    + 2 * torch.log(stds)
-                    + ((inputs[..., None] - means) / stds) ** 2
-                ),
-                dim=-1,
-            ),
-            dim=-1,
-        )
-        return log_prob
-
-    def sample(self, num_samples, context=None):
-
-        if context is not None:
-            context = torchutils.repeat_rows(context, num_samples)
-
-        with torch.no_grad():
-
-            samples = torch.zeros(context.shape[0], self.features)
-
-            for feature in range(self.features):
-                outputs = self.forward(samples, context)
-                outputs = outputs.reshape(
-                    *samples.shape, self.num_mixture_components, 3
-                )
-
-                logits, means, unconstrained_stds = (
-                    outputs[:, feature, :, 0],
-                    outputs[:, feature, :, 1],
-                    outputs[:, feature, :, 2],
-                )
-                logits = torch.log_softmax(logits, dim=-1)
-                stds = F.softplus(unconstrained_stds) + self.epsilon
-
-                component_distribution = distributions.Categorical(logits=logits)
-                components = component_distribution.sample((1,)).reshape(-1, 1)
-                means, stds = (
-                    means.gather(1, components).reshape(-1),
-                    stds.gather(1, components).reshape(-1),
-                )
-                samples[:, feature] = (
-                    means + torch.randn(context.shape[0]) * stds
-                ).detach()
-
-        return samples.reshape(-1, num_samples, self.features)
-
-    def _initialize(self):
-        # Initialize mixture coefficient logits to near zero so that mixture coefficients
-        # are approximately uniform.
-        self.final_layer.weight.data[::3, :] = self.epsilon * torch.randn(
-            self.features * self.num_mixture_components, self.hidden_features
-        )
-        self.final_layer.bias.data[::3] = self.epsilon * torch.randn(
-            self.features * self.num_mixture_components
+    mask, out_degree = mask_linear._get_mask_and_degrees(
+            in_degrees=_get_input_degrees(in_feature),
+            out_features=out_feature,
+            autoregressive_features=in_feature,
+            random_mask=False,
+            is_output=True,
         )
 
-        # self.final_layer.weight.data[1::3, :] = self.epsilon * torch.randn(
-        #     self.features * self.num_mixture_components, self.hidden_features
-        # )
-        # low, high = -7, 7
-        # self.final_layer.bias.data[1::3] = (high - low) * torch.rand(
-        #     self.features * self.num_mixture_components
-        # ) + low
+    print(out_degree)
 
-        # Initialize unconstrained standard deviations to the inverse of the softplus
-        # at 1 so that they're near 1 at initialization.
-        self.final_layer.weight.data[2::3] = self.epsilon * torch.randn(
-            self.features * self.num_mixture_components, self.hidden_features
-        )
-        self.final_layer.bias.data[2::3] = torch.log(
-            torch.exp(torch.Tensor([1 - self.epsilon])) - 1
-        ) * torch.ones(
-            self.features * self.num_mixture_components
-        ) + self.epsilon * torch.randn(
-            self.features * self.num_mixture_components
-        )
-        # self.final_layer.bias.data[2::3] = torch.log(
-        #     torch.Tensor([1 - self.epsilon])
-        # ) * torch.ones(
-        #     self.features * self.num_mixture_components
-        # ) + self.epsilon * torch.randn(
-        #     self.features * self.num_mixture_components
-        # )
+    a = mask_linear.weight * mask
+
+    print(a)
 
