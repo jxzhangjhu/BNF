@@ -134,14 +134,14 @@ class BlockAffineTransformation(Transform):
         )
 
         # Determinant of the block transformation is the product of all singular values;
-        # logabsdet = torch.sum(torch.log(sigma_clapmed), dim=1)
+        logabsdet = torch.sum(torch.log(sigma_clapmed), dim=1)
 
 
         # Direct way of calculating determinant;
-        det_expect_last = torch.sum(torch.log(torch.abs(torch.det(W_block_expect_last))), dim=0)
-        det_last_block = torch.log(torch.abs(torch.det(W_last_block)))
-
-        logabsdet = det_expect_last + det_last_block
+        # det_expect_last = torch.sum(torch.log(torch.abs(torch.det(W_block_expect_last))), dim=0)
+        # det_last_block = torch.log(torch.abs(torch.det(W_last_block)))
+        #
+        # logabsdet = det_expect_last + det_last_block
 
         # Compute the orthogonal regularization error;
         self.reg_error = self._orthogonal_error(U_block_expect_last) + self._orthogonal_error(U_last_block) +\

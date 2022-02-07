@@ -182,7 +182,7 @@ class BlockMADE(nn.Module):
                  out_feature,
                  num_block,
                  num_hidden_layer=2,
-                 use_res_layer=True,
+                 use_res_layer=False,
                  rand_mask=False,
                  activation=F.relu,
                  dropout_probability=0.0,
