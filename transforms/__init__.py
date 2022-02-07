@@ -36,4 +36,5 @@ from transforms.svd import SVDLinear
 # from transforms.activation import CompactResAct
 # from transforms.activation import MonotonicTanhAct
 from transforms.pwl import PWLTransformation
+from transforms.blockaffine import BlockAffineTransformation
 

@@ -51,7 +51,7 @@ class LUSpectralTransformation(Transform):
         return outputs
 
 
-if __name__ == "__main__":
+
     np.random.seed(1137)
     torch.manual_seed(114514)
     batch_size = 2
