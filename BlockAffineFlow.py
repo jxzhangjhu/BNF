@@ -58,10 +58,10 @@ block_feature = 2
 
 # Flow model parameters and training setting, including training iterations and validation intervals;
 batch_size = 256
-num_transformation = 1
+num_transformation = 2
 num_iter = 20000
 val_interval = 250
-lr = 0.005
+lr = 0.0005
 
 # Base distribution;
 base_dist = distributions.StandardNormal(shape=[feature])
@@ -70,6 +70,9 @@ base_dist = distributions.StandardNormal(shape=[feature])
 transform = []
 for i in range(num_transformation):
     transform.append(
+        transforms.ReversePermutation(features=feature)
+    )
+    transform.append(
         transforms.BlockAffineTransformation(
             feature=feature,
             block_feature=block_feature,
@@ -77,9 +80,6 @@ for i in range(num_transformation):
             sigma_max=10,
             sigma_min=1
         )
-    )
-    transform.append(
-        transforms.LULinear(features=feature)
     )
 
 
@@ -107,8 +107,8 @@ for i in tbar:
     batch = next(train_generator).to(device)
     optimizer.zero_grad()
     loss_kl = -flow.log_prob(inputs=batch).mean()
-    loss_reg = transform[0].reg_error
-    loss = loss_kl + 5 * loss_reg
+    loss_reg = transform[1].reg_error
+    loss = loss_kl + 0 * loss_reg
     train_loss[i] = loss.detach().numpy()
     train_loss_kl[i] = loss_kl.detach().numpy()
     train_loss_reg[i] = loss_reg.detach().numpy()
@@ -125,11 +125,6 @@ for i in tbar:
     loss.backward()
     optimizer.step()
 
-    # o, lj = Transform(batch)
-    # if (torch.any(torch.isnan(o)) or torch.any(torch.isnan(lj))):
-    #     raise ValueError('NAN detected')
-    # print('Current transformation output is:\n', o)
-
     # Validation;
     if (i + 0) % val_interval == 0:
         print('Current total loss: {:.3f}'.format(train_loss[i]))
@@ -143,23 +138,6 @@ for i in tbar:
         val_score[count_val] = avg_val_log_likelyhood.cpu().detach().numpy()
         # print('Current val score:\n', val_score[count_val])
         count_val += 1
-
-        # out_1 = transform[0](batch)[0]
-        # slope_at_x = transform[1].mono_pwl_function.slope_at(out_1)
-        # out2, slope = transform[1].mono_pwl_function(out_1)
-        # print('1\n', slope[0])
-        # print('2\n', slope_at_x[0])
-
-        # print(transform[1].mono_pwl_function.get_slopes())
-
-        # x = torch.zeros(2000, feature)
-        # for z in range(feature):
-        #     x[:, z] = torch.arange(-10, 10, 0.01)
-        #
-        # y = transform[1](x)[0]
-        #
-        # plt.plot(x[:, 0], y.detach().numpy()[:, 0], label='{}th act'.format(i))
-        # plt.legend()
 
 end = time.time()
 elapsed_time = end - start
